@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "spreadsheet-automator-476214",
+  "private_key_id": "29c53ecbafc7c354bc3abe758ba8b8e9b45e8efd",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDUhwkeX2+2Ip/O\nWvltZrt6cv235YYL8HnyBQLSQbafrL5hCwW/Up5vx0jVaZkxsGX4UWT+TBnTChwI\nScK+3BeBcL/sfe0on109iqGpatXnBN3joABIe/b98nrbUROl8r+81i2LY0CeAcOs\nAAB0CTCef73+PenKloFYKibaYCq2NBCg6Mui9UNrxLinVVdMB2u93OnW0qYjuJbl\n+oRCRDbxnLNpWdqxpTqc0G7eADwRxCB5x+8N4pewx5Ud+29S7kz4bfsIAvh1FQHX\nrFinhuC7ZK3ZLYBKoYaEdWA743l5PquhAOFDbNTps1HiMxx/RxJsDBWAL5kxvpYC\nTUp7P/fzAgMBAAECggEARUxgv0wcN3XzyMwmP7N7VzKOo3uOaW84vB9BK8DspQUl\nMKxw69ErQ0RmbdwYbTjZDw6vUTIMS6GkwVkXzLckXPsgQaNQBOpt80a0bvMcm08d\ncP73iKsPPv/laoT11KsiNRdbU3OCGuN1Y6y+eReUCGKb135lsL7BnzdjYtpvougf\n6uFQoGIxTWrIbpsT/jiSXL8tu/W7Ex69jC5GyUs2V3ogbuJX4jOUtqGpBWGA+CAM\n097l7aNuoDDlr7oPE45PgcnD5iZsoEC6J3shYQss8+WtIqlbUoLaz+tfW64eqKpC\nW7wJVT0w4OOxGl9XqQI3Xhlqcz+HKS0F/wc0nll5gQKBgQD0SkeTlsAlUkKTsoFs\nQgJnLHtjZCifG6k8NQ8mkeKx6OYxTYZhfi1+COCds8Nz2NDoWUk4z/n2ysav3Zna\nGqr5nJ/9dUwjpZjK5ofIZqiDYqZx4pdRPfL3BrSHAz1Cw295OM1tklNidFDe0uxR\nrYysitt2cr43Elj06ggdJw5ycwKBgQDetv3aEIvas1m9GYoZHASv+bk8FptN08be\nf6MWP0x1LsE7K7tWT0Xj4XV4/nUVHNDHOCPiX+QJgO46BK72SjKsUAgGHZpUC27v\nraPNLIznHLqzKDf2tew+/YthPPG6yGowmqqsSVrg9ted7aBQ6/QA+I8UoA599gRV\ni1UuH/eEgQKBgH4H8GN5S8o1ZTmzx0elyn2WGlZNrxNe/vGb4iQg8ZadtFzNRT35\nDdlPFSrnOjgDLMwifD8+NRSYyuaiaiR2y6yZnITzxgNCBNDxHC5MoDWgaISqxSxZ\nzIabQ/m/txRBpbohjwIvkqthnPNIWDlPUxsVTGIQkofxBEnej68SnkZ3AoGANp74\niSevtRZxdtAxr1DQ0XvUcyk0M5Ux29W/4K/rh33NBD8IdfWBNY9Q6Ti27FOh3Ion\nOti7q50EUBRf+KVf4iTKov1VoTEgpwWV+7bmY7QHEfNWLlqVsykpqtJwkpeee4cj\nPpfLAwtm/COQQuhrcmWDadKLW1cf3v8KCALtCIECgYAYrstoQv1foa+KGUlB1wfN\nsTaN3AEZwk5GLA6Osdk/bKT2eO5jiU/IScfquHAz4MGYpWipLHMhzCBRik2SX1OH\nRbB35yUrx1rJtaH1kpd81FD52roaJh/gdrpFGm7M0vuCQpV/K0xutMO7fFWX3dj2\nVALUOukMDVP+Iq6iHp6WWw==\n-----END PRIVATE KEY-----\n",
+  "client_email": "spreadsheet-automator@spreadsheet-automator-476214.iam.gserviceaccount.com",
+  "client_id": "107880417877977010398",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/spreadsheet-automator%40spreadsheet-automator-476214.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
