@@ -10,8 +10,6 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 import os
-import pygsheets
-import tkinter
 
 load_dotenv()
 gameName = 'geonbu'
@@ -19,13 +17,20 @@ tagLine = '0618'
 api_key = os.environ.get('riot_api_key')
 
 
-def get_puuuid(summonerId=None, gameName=None, tagLine=None, api_key=None):
+def get_name_from_puuid(puuid=None, api_key= None):
+    link = f'https://americas.api.riotgames.com/riot/account/v1/accounts/by-puuid/{puuid}?api_key={api_key}'
+
+    response = requests.get(link)
+    gameNam = response.json()['gameName']
+    return f'{gameNam}'
+
+def get_puuid(summonerId=None, gameName=None, tagLine=None, api_key=None):
     """
     Gets the puuid from a summonerId or riot_id and riot_tag.
-    :param gameName:
-    :param tagLine:
-    :param api_key:
-    :return:
+    :param gameName: In game name
+    :param tagLine: Riot Tagline
+    :param api_key: the API key
+    :return: the puuuid
     """
     if summonerId is not None:
         root_url = f'https://americas.api.riotgames.com/'
@@ -52,17 +57,9 @@ def get_match_history(puuid=None,start=0, count=20):
 def get_match_data_from_id(matchId = None):
     root_url = f'https://americas.api.riotgames.com/'
     endpoint = f'lol/match/v5/matches/{matchId}'
-    print(root_url+endpoint+'?api_key=' +api_key)
     response = requests.get(root_url+endpoint+'?api_key=' +api_key)
-
+    #print(root_url+endpoint+'?api_key=' +api_key)
     return response.json()
-
-#userName = input("Enter Username: ")
-#userTag = input("Enter Tag: ")
-
-userP = get_puuuid(gameName=gameName,tagLine=tagLine,api_key=api_key)
-print(userP)
-z = get_match_history(userP, start=0, count=10)
 
 def process_match_json(match_json, puuid):
     metadata= match_json['metadata']
@@ -91,7 +88,8 @@ def process_match_json(match_json, puuid):
     patch = info['gameVersion']
 
 
-    role = player['role']
+    role = player['teamPosition']
+    game_queue = player['role']
     champ_lvl = player['champLevel']
     champ_id = player['championId']
     champ_transform = player['championTransform']
@@ -116,7 +114,7 @@ def process_match_json(match_json, puuid):
     neutral_minions_killed = player['neutralMinionsKilled']
 
     summoner_id = player['summonerId']
-    summoner_name = player['summonerName']
+    summoner_name = player['riotIdGameName']
 
     total_damage_dealt = player['totalDamageDealtToChampions']
     total_damage_shielded = player['totalDamageShieldedOnTeammates']
@@ -205,6 +203,7 @@ def process_match_json(match_json, puuid):
         'wards_placed': [wards_placed],
         'wards_killed': [wards_killed],
         'vision_score': [vision_score],
+        'queue': [game_queue],
         'defense': [defense],
         'offense':[offense],
         'flex':[flex],
@@ -220,11 +219,69 @@ def process_match_json(match_json, puuid):
         'objectives_stolen_assists':[objectives_stolen_assists],
     })
     return matchDF
-df = pd.DataFrame()
-for a in z:
-    game = get_match_data_from_id(a)
-    mat = process_match_json(game, userP)
-    df = pd.concat([df, mat])
-#service_account = pygsheets.authorize(service_account_file='JSONs\\spreadsheet-automator-476214-29c53ecbafc7.json')
-print(df.to_string())
-#sheet = service_account.open_by_url('https://docs.google.com/spreadsheets/d/1WiaxzdPN6mucwCFS4FqtFpUpTxefoqHq0_dH0c3nRIc/edit?usp=sharing')
+
+
+def json_extract(obj, key):
+    arr = []
+    def extract(obj,arr,key):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if k == key:
+                    arr.append(v)
+                elif isinstance(v, (dict,list)):
+                    extract(v,arr,key)
+        elif isinstance(obj, list):
+            for item in obj:
+                extract(item, arr, key)
+        return arr
+
+    values = extract(obj, arr, key)
+    return values
+
+if __name__ == '__main__':
+    #userName = input("Enter Username: ")
+    #userTag = input("Enter Tag: ")
+
+    userP = get_puuid(gameName=gameName,tagLine=tagLine,api_key=api_key)
+    z = get_match_history(userP, start=0, count=10)
+
+    df = pd.DataFrame()
+    for a in z:
+        game = get_match_data_from_id(a)
+        mat = process_match_json(game, userP)
+        df = pd.concat([df, mat])
+
+
+    perk = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/perks.json'
+    perkstyles = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/perkstyles.json'
+    character = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-summary.json'
+    items = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/items.json'
+    perk_json = requests.get(perk).json()
+    perk_style_json = requests.get(perkstyles).json()
+    character_json = requests.get(character).json()
+    item_json = requests.get(items).json()
+
+    perk_ids = json_extract(perk_json, 'id')
+    perk_names = json_extract(perk_json,'name')
+    perk_dict = dict(map(lambda i, j : (int(i),j),perk_ids, perk_names))
+
+    perk_styles_ids = json_extract(perk_style_json, 'id')
+    perk_style_names = json_extract(perk_style_json,'name')
+    perk_style_dict = dict(map(lambda i, j : (int(i),j),perk_styles_ids, perk_style_names))
+
+
+    character_names = json_extract(character_json, 'name')
+    character_ids = json_extract(character_json, 'id')
+    character_dict = dict(map(lambda i, j: (int(i), j), character_ids, character_names))
+
+    item_names = json_extract(item_json, 'name')
+    item_ids = json_extract(item_json, 'id')
+    item_dict = dict(map(lambda i, j: (int(i), j), item_ids, item_names))
+    for i in range(7):
+        df[f'item{i}'] = df[f'item{i}'].replace(item_dict)
+
+    df = df.replace(perk_dict).replace(perk_style_dict)
+    df['champion'] = df['champion'].replace(character_dict)
+
+    print(get_name_from_puuid(userP, api_key))
+    print(df.to_string())
