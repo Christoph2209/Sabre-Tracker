@@ -4,8 +4,6 @@
     Average CS, Win/Loss Record
 
 """
-from http.client import responses
-
 import pandas as pd
 import requests
 from dotenv import load_dotenv
@@ -15,7 +13,8 @@ load_dotenv()
 gameName = '877CRASHOUT'
 tagLine = 'call'
 api_key = os.environ.get('riot_api_key')
-
+character = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-summary.json'
+items = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/items.json'
 
 def get_name_from_puuid(puuid=None, api_key= None):
     link = f'https://americas.api.riotgames.com/riot/account/v1/accounts/by-puuid/{puuid}?api_key={api_key}'
@@ -41,12 +40,12 @@ def get_puuid(summonerId=None, gameName=None, tagLine=None, api_key=None):
 
     # If response isn't 200 OK, handle gracefully
     if response.status_code != 200:
-        print(f"⚠️ Riot API error {response.status_code}: {response.text}")
+        print(f"Riot API error {response.status_code}: {response.text}")
         return None
 
     data = response.json()
     if "puuid" not in data:
-        print("⚠️ No 'puuid' in response:", data)
+        print("No 'puuid' in response:", data)
         return None
 
     return data["puuid"]
@@ -228,8 +227,6 @@ def process_match_json(match_json, puuid):
 def make_it_pretty(df):
     #perk = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/perks.json'
     #perkstyles = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/perkstyles.json'
-    character = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-summary.json'
-    items = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/items.json'
 
     #perk_json = requests.get(perk).json()
     #perk_style_json = requests.get(perkstyles).json()
@@ -248,11 +245,11 @@ def make_it_pretty(df):
     character_ids = json_extract(character_json, 'id')
     character_dict = dict(map(lambda i, j: (int(i), j), character_ids, character_names))
 
-    item_names = json_extract(item_json, 'name')
-    item_ids = json_extract(item_json, 'id')
-    item_dict = dict(map(lambda i, j: (int(i), j), item_ids, item_names))
-    for i in range(7):
-        df[f'item{i}'] = df[f'item{i}'].replace(item_dict)
+    #item_names = json_extract(item_json, 'name')
+    #item_ids = json_extract(item_json, 'id')
+    #item_dict = dict(map(lambda i, j: (int(i), j), item_ids, item_names))
+    #for i in range(7):
+    #    df[f'item{i}'] = df[f'item{i}'].replace(item_dict)
 
     #df = df.replace(perk_dict).replace(perk_style_dict)
     df['champion'] = df['champion'].replace(character_dict)
@@ -272,14 +269,64 @@ def make_it_pretty(df):
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+_item_data_cache = None  # cache globally so we only fetch once
+
+
+def get_images(data_frame):
+    """
+    Given a row or dict-like object containing item0..item6,
+    return a list of valid CommunityDragon item URLs using item_id.
+    Skips missing or zero items.
+    """
+    global _item_data_cache
+
+    if _item_data_cache is None:
+        items_url = "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/items.json"
+        try:
+            _item_data_cache = requests.get(items_url, timeout=10).json()
+        except Exception as e:
+            print(f"Error fetching item JSON: {e}")
+            return []
+
+    # Build item_id -> icon_path dict from the JSON
+    image_dict = {}
+    for item in _item_data_cache:
+        try:
+            item_id = int(item["id"])
+            # The iconPath in the JSON looks like: "/lol-game-data/assets/ASSETS/Items/Icons2D/1001_healthpotion.png"
+            icon_path = item.get("iconPath", "")
+            if not icon_path:
+                continue
+
+            # Remove the /lol-game-data/assets/ prefix and convert to lowercase
+            # CommunityDragon URLs are case-sensitive and all lowercase
+            icon_path = icon_path.replace("/lol-game-data/assets/", "").lstrip('/').lower()
+            url = f"https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/{icon_path}"
+            image_dict[item_id] = url
+        except (ValueError, KeyError, TypeError):
+            continue
+
+    # Extract valid item IDs from row
+    image_paths = []
+    for i in range(7):
+        try:
+            item_val = data_frame.get(f"item{i}") if isinstance(data_frame, dict) else data_frame[f"item{i}"]
+            item_id = int(item_val)
+            if item_id != 0 and item_id in image_dict:
+                image_paths.append(image_dict[item_id])
+        except (ValueError, TypeError, KeyError):
+            continue
+
+    return image_paths
+
 def get_player_stats(puuid, match_count=1):
     match_ids = get_match_history(puuid, start=0, count=match_count)
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures = [executor.submit(get_match_data_from_id, mid) for mid in match_ids]
-        match_data = [f.result() for f in as_completed(futures)]
+        match_data = [f.result() for f in futures]
 
-    df = pd.concat([process_match_json(game, puuid) for game in match_data])
+    df = pd.concat([process_match_json(game, puuid) for game in match_data], ignore_index=True)
     df = make_it_pretty(df)
     return df
 
