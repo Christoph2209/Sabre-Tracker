@@ -1,3 +1,5 @@
 src/.env
 /src/JSONs
 
+/src/dist/
+/src/build/
