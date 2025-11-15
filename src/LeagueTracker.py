@@ -15,7 +15,9 @@ load_dotenv()
 api_key = os.environ.get('riot_api_key')
 character = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-summary.json'
 items = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/items.json'
+
 _item_data_cache = None  # cache globally so we only fetch once
+_character_data_cache = None  # cache character data
 
 def get_puuid(summonerId=None, gameName=None, tagLine=None, api_key=None):
     """
@@ -48,14 +50,14 @@ def get_match_history(puuid=None,start=0, count=20):
     root_url = f'https://americas.api.riotgames.com/'
     endpoint = f'lol/match/v5/matches/by-puuid/{puuid}/ids'
     query_params = f'?start={start}&count={count}'
-    response = requests.get(root_url + endpoint + query_params +"&api_key=" + api_key)
+    response = requests.get(root_url + endpoint + query_params +"&api_key=" + api_key, timeout=10)
 
     return response.json()
 
 def get_match_data_from_id(matchId = None):
     root_url = f'https://americas.api.riotgames.com/'
     endpoint = f'lol/match/v5/matches/{matchId}'
-    response = requests.get(root_url+endpoint+'?api_key=' +api_key)
+    response = requests.get(root_url+endpoint+'?api_key=' +api_key, timeout=10)
 
     return response.json()
 
@@ -110,7 +112,8 @@ def process_match_json(match_json, puuid):
     item6 = player['item6']
 
     neutral_minions_killed = player['neutralMinionsKilled']
-
+    minions = player['totalMinionsKilled']
+    minions += neutral_minions_killed
     summoner_id = player['summonerId']
     summoner_name = player['riotIdGameName']
 
@@ -189,7 +192,6 @@ def process_match_json(match_json, puuid):
         'item4':[item4],
         'item5':[item5],
         'item6':[item6],
-        'neutral_minions_killed': [neutral_minions_killed],
         'summoner_id': [summoner_id],
         'summoner_name':[summoner_name],
         'total_damage_dealt': [total_damage_dealt],
@@ -205,6 +207,7 @@ def process_match_json(match_json, puuid):
         'defense': [defense],
         'offense':[offense],
         'flex':[flex],
+        'minions':[minions],
         'primary_style':[primary_style],
         'secondary_style':[secondary_style],
         'primary_keystone':[primary_keystone],
@@ -219,12 +222,23 @@ def process_match_json(match_json, puuid):
     return matchDF
 
 def make_it_pretty(df):
-    character_json = requests.get(character).json()
-    character_names = json_extract(character_json, 'name')
-    character_ids = json_extract(character_json, 'id')
-    character_dict = dict(map(lambda i, j: (int(i), j), character_ids, character_names))
+    """
+    This is the way we are making the character names instead of the id numbers.
+    It takes in the dataframe, finds the names and ids from thee character json file (community dragon)
+    and puts them into the dataframe
+    :param df: the user dataframe
+    :return: an updated user dataframe that will have champion names instead of ids
+    """
+    global _character_data_cache
 
-    df['champion'] = df['champion'].replace(character_dict)
+    # Cache character data
+    if _character_data_cache is None:
+        character_json = requests.get(character, timeout=10).json()
+        character_names = json_extract(character_json, 'name')
+        character_ids = json_extract(character_json, 'id')
+        _character_data_cache = dict(map(lambda i, j: (int(i), j), character_ids, character_names))
+
+    df['champion'] = df['champion'].replace(_character_data_cache)
 
     return df
 
@@ -280,7 +294,7 @@ def get_images(data_frame):
 def get_player_stats(puuid, match_count=1):
     match_ids = get_match_history(puuid, start=0, count=match_count)
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=20) as executor:
         futures = [executor.submit(get_match_data_from_id, mid) for mid in match_ids]
         match_data = [f.result() for f in futures]
 
