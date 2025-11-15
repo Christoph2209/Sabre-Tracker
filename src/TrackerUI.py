@@ -487,6 +487,78 @@ def create_creep_graph(df, parent_frame):
     canvas.get_tk_widget().pack(fill="both", expand=True)
 
 
+# -------------------------------
+# Most Common Bought Item
+# -------------------------------
+
+def common_item_graph(df, parent_frame):
+    """
+    Creating a horizontal bar graph for frequency of items bought
+    :param df: the dataframe of the user
+    :param parent_frame: the graph frame
+    :return: The bar graph
+    """
+    for widget in parent_frame.winfo_children():
+        widget.destroy()
+    items ={}
+    for _, row in df.iterrows():
+        for i in range(7):
+            try:
+                item_id = int(row[f'item{i}'])
+                if item_id != 0:
+                    if item_id in items:
+                        items[item_id] += 1
+                    else:
+                        items[item_id] = 1
+            except (KeyError, ValueError, TypeError):
+                continue
+    #Now we sort them by frequency
+    sorted_items = sorted(items.items(), key=lambda  x: x[1], reverse=True)[:15]
+    if not sorted_items:
+        # No items found
+        label = ttk.Label(parent_frame, text="No items found", style="TLabel")
+        label.pack(pady=20)
+        return
+
+    item_ids = [item[0] for item in sorted_items]
+    frequencies = [item[1] for item in sorted_items]
+    item_names = [get_item_name(item_id) for item_id in item_ids]
+
+    # Truncate long names
+    item_names = [name[:20] + '...' if len(name) > 20 else name for name in item_names]
+
+    # Create figure with dark theme
+    fig = Figure(figsize=(5, 6), facecolor='#1c1c1c')
+    ax = fig.add_subplot(111)
+    ax.set_facecolor('#2b2b2b')
+
+    # Create bar chart
+    bars = ax.barh(range(len(item_names)), frequencies, color='#6fff6f', edgecolor='#ffffff', linewidth=1)
+
+    # Styling
+    ax.set_yticks(range(len(item_names)))
+    ax.set_yticklabels(item_names, color='#f8f8f8', fontsize=8)
+    ax.set_xlabel('Times Purchased', color='#f8f8f8', fontsize=10)
+    ax.set_title('Most Bought Items', color='#f8f8f8', fontsize=11, fontweight='bold')
+    ax.tick_params(colors='#d0d0d0', labelsize=8)
+    ax.grid(True, alpha=0.2, color='#ffffff', axis='x')
+
+    # Add value labels on bars
+    for i, (bar, freq) in enumerate(zip(bars, frequencies)):
+        ax.text(freq + 0.1, i, str(freq), va='center', color='#f8f8f8', fontsize=8)
+
+    for spine in ax.spines.values():
+        spine.set_edgecolor('#3c3c3c')
+
+    # Invert y-axis so highest is on top
+    ax.invert_yaxis()
+
+    fig.tight_layout()
+
+    # Embed in tkinter
+    canvas = FigureCanvasTkAgg(fig, master=parent_frame)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill="both", expand=True)
 
 
 # -------------------------------
@@ -550,10 +622,30 @@ def display_results(df, name, tag):
 
     ttk.Label(results_frame, text=f"Stats for {name}#{tag}", style="Header.TLabel").pack(pady=5)
 
-    # Create K/D graph
-    create_kd_graph(df, kd_tab)
-    create_damage_graph(df, damage_tab)
-    create_creep_graph(df, cs_tab)
+    # Show a temporary loading message in graphs
+    for tab in [kd_tab, damage_tab, cs_tab, item_tab]:
+        for widget in tab.winfo_children():
+            widget.destroy()
+        ttk.Label(tab, text="Generating graph...", style="Header.TLabel").pack(pady=20)
+
+    root.update_idletasks()
+
+    # Create graphs one by one with UI updates in between
+    def create_graphs_sequentially():
+        create_kd_graph(df, kd_tab)
+        root.update_idletasks()
+
+        create_damage_graph(df, damage_tab)
+        root.update_idletasks()
+
+        create_creep_graph(df, cs_tab)
+        root.update_idletasks()
+
+        common_item_graph(df, item_tab)
+        root.update_idletasks()
+
+    # Run graph creation after a short delay to let UI update
+    root.after(100, create_graphs_sequentially)
 
     # Display each match card
     for _, row in df.iterrows():
@@ -580,51 +672,51 @@ def create_match_card(row):
     ttk.Label(header, text=result_text, style="Win.TLabel" if row["win"] else "Loss.TLabel").pack(side="right")
 
     # --- Items row ---
-    try:
-        item_urls = get_images(row)
-    except Exception as e:
-        print(f"Error getting item images: {e}")
-        item_urls = []
-
     item_frame = ttk.Frame(card, style="Card.TFrame")
     item_frame.pack(pady=5)
 
-    if not item_urls:
+    # Store images in a list attached to the frame to prevent garbage collection
+    if not hasattr(item_frame, 'item_images'):
+        item_frame.item_images = []
+
+    # Get all non-zero item IDs in order
+    item_ids = []
+    for j in range(7):
+        try:
+            item_val = int(row[f"item{j}"])
+            if item_val != 0:
+                item_ids.append(item_val)
+        except (KeyError, ValueError, TypeError):
+            continue
+
+    if not item_ids:
         ttk.Label(item_frame, text="No items built.", style="TLabel").pack(side="left", padx=5)
     else:
-        # Store images in a list attached to the frame to prevent garbage collection
-        if not hasattr(item_frame, 'item_images'):
-            item_frame.item_images = []
+        try:
+            item_urls = get_images(row)
 
-        # Get all non-zero item IDs in order
-        item_ids = []
-        for j in range(7):
-            try:
-                item_val = int(row[f"item{j}"])
-                if item_val != 0:
-                    item_ids.append(item_val)
-            except (KeyError, ValueError, TypeError):
-                continue
+            # Now match URLs to item IDs
+            for i, url in enumerate(item_urls):
+                if not url:
+                    continue
 
-        # Now match URLs to item IDs
-        for i, url in enumerate(item_urls):
-            if not url:
-                continue
+                # Get the corresponding item ID
+                item_id = item_ids[i] if i < len(item_ids) else None
 
-            # Get the corresponding item ID
-            item_id = item_ids[i] if i < len(item_ids) else None
+                img = load_image_from_url(url, size=(40, 40))
+                lbl = ttk.Label(item_frame, image=img)
+                lbl.pack(side="left", padx=3)
 
-            img = load_image_from_url(url, size=(40, 40))
-            lbl = ttk.Label(item_frame, image=img)
-            lbl.pack(side="left", padx=3)
+                # Add tooltip with item name
+                if item_id:
+                    item_name = get_item_name(item_id)
+                    ToolTip(lbl, item_name)
 
-            # Add tooltip with item name
-            if item_id:
-                item_name = get_item_name(item_id)
-                ToolTip(lbl, item_name)
-
-            # Keep a reference to prevent garbage collection
-            item_frame.item_images.append(img)
+                # Keep a reference to prevent garbage collection
+                item_frame.item_images.append(img)
+        except Exception as e:
+            print(f"Error getting item images: {e}")
+            ttk.Label(item_frame, text="Items unavailable", style="TLabel").pack(side="left", padx=5)
 
 
 # -------------------------------
@@ -705,13 +797,13 @@ notebook.pack(fill="both", expand=True)
 kd_tab = ttk.Frame(notebook, style="TFrame")
 damage_tab = ttk.Frame(notebook, style="TFrame")
 cs_tab = ttk.Frame(notebook, style="TFrame")
-#vision_tab = ttk.Frame(notebook, style="TFrame")
+item_tab = ttk.Frame(notebook, style="TFrame")
 
 # Add tabs to notebook
 notebook.add(kd_tab, text="K/D")
 notebook.add(damage_tab, text="Damage")
 notebook.add(cs_tab, text="CS")
-#notebook.add(vision_tab, text="Vision")
+notebook.add(item_tab, text="Items")
 
 # Preload data when app starts
 preload_data()
