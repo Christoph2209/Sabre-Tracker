@@ -30,7 +30,7 @@ class ToolTip:
         self.widget.bind("<Enter>", self.show_tooltip)
         self.widget.bind("<Leave>", self.hide_tooltip)
 
-    def show_tooltip(self, event=None):
+    def show_tooltip(self, _):
         x, y, _, _ = self.widget.bbox("insert")
         x += self.widget.winfo_rootx() + 25
         y += self.widget.winfo_rooty() + 25
@@ -74,7 +74,7 @@ def load_image_from_url(url, size=(40, 40)):
         img = img.resize(size, Image.Resampling.LANCZOS)
         return ImageTk.PhotoImage(img)
     except Exception as e:
-        print(f"⚠️ Failed to load image: {url} -> {e}")
+        print(f"Failed to load image: {url} -> {e}")
         return placeholder_image(size)
 
 
@@ -102,7 +102,7 @@ def get_item_name(item_id):
             items_data = requests.get(items_url, timeout=10).json()
             _item_name_cache = {int(item["id"]): item.get("name", "Unknown Item") for item in items_data}
         except Exception as e:
-            print(f"⚠️ Error fetching item names: {e}")
+            print(f"Error fetching item names: {e}")
             _item_name_cache = {}
 
     return _item_name_cache.get(int(item_id), "Unknown Item")

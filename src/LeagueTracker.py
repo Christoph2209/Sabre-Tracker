@@ -8,20 +8,14 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 load_dotenv()
-gameName = '877CRASHOUT'
-tagLine = 'call'
+
 api_key = os.environ.get('riot_api_key')
 character = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-summary.json'
 items = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/items.json'
-
-def get_name_from_puuid(puuid=None, api_key= None):
-    link = f'https://americas.api.riotgames.com/riot/account/v1/accounts/by-puuid/{puuid}?api_key={api_key}'
-
-    response = requests.get(link)
-    gameNam = response.json()['gameName']
-    return f'{gameNam}'
+_item_data_cache = None  # cache globally so we only fetch once
 
 def get_puuid(summonerId=None, gameName=None, tagLine=None, api_key=None):
     """
@@ -62,7 +56,7 @@ def get_match_data_from_id(matchId = None):
     root_url = f'https://americas.api.riotgames.com/'
     endpoint = f'lol/match/v5/matches/{matchId}'
     response = requests.get(root_url+endpoint+'?api_key=' +api_key)
-    #print(root_url+endpoint+'?api_key=' +api_key)
+
     return response.json()
 
 def process_match_json(match_json, puuid):
@@ -225,51 +219,15 @@ def process_match_json(match_json, puuid):
     return matchDF
 
 def make_it_pretty(df):
-    #perk = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/perks.json'
-    #perkstyles = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/perkstyles.json'
-
-    #perk_json = requests.get(perk).json()
-    #perk_style_json = requests.get(perkstyles).json()
     character_json = requests.get(character).json()
-    item_json = requests.get(items).json()
-
-    #perk_ids = json_extract(perk_json, 'id')
-    #perk_names = json_extract(perk_json, 'name')
-    #perk_dict = dict(map(lambda i, j: (int(i), j), perk_ids, perk_names))
-
-    #perk_styles_ids = json_extract(perk_style_json, 'id')
-    #perk_style_names = json_extract(perk_style_json, 'name')
-    #perk_style_dict = dict(map(lambda i, j: (int(i), j), perk_styles_ids, perk_style_names))
-
     character_names = json_extract(character_json, 'name')
     character_ids = json_extract(character_json, 'id')
     character_dict = dict(map(lambda i, j: (int(i), j), character_ids, character_names))
 
-    #item_names = json_extract(item_json, 'name')
-    #item_ids = json_extract(item_json, 'id')
-    #item_dict = dict(map(lambda i, j: (int(i), j), item_ids, item_names))
-    #for i in range(7):
-    #    df[f'item{i}'] = df[f'item{i}'].replace(item_dict)
-
-    #df = df.replace(perk_dict).replace(perk_style_dict)
     df['champion'] = df['champion'].replace(character_dict)
-
-    #player_id = df['participants'].to_list()
-    #player_id = flatten_list(player_id)
-    #player_dict = {}
-    #for p in set(player_id):  # unique only
-    #    player_dict[p] = get_name_from_puuid(p, api_key)
-
-    # Replace puuids with Riot names in the DataFrame
-    #df["participants"] = df["participants"].apply(
-    #    lambda lst: [player_dict.get(p, p) for p in lst]
-    #)
 
     return df
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
-_item_data_cache = None  # cache globally so we only fetch once
 
 
 def get_images(data_frame):
@@ -330,13 +288,6 @@ def get_player_stats(puuid, match_count=1):
     df = make_it_pretty(df)
     return df
 
-
-def flatten_list(nested_list):
-    flat_list = []
-    for sublist in nested_list:
-        flat_list.extend(sublist)
-    return flat_list
-
 def json_extract(obj, key):
     arr = []
     def extract(obj,arr,key):
@@ -353,12 +304,3 @@ def json_extract(obj, key):
 
     values = extract(obj, arr, key)
     return values
-
-if __name__ == '__main__':
-    #userName = input("Enter Username: ")
-    #userTag = input("Enter Tag: ")
-
-    userP = get_puuid(gameName=gameName,tagLine=tagLine,api_key=api_key)
-    df = get_player_stats(userP, 5)
-
-    print(df.to_string())
