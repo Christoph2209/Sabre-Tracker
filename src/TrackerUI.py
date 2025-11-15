@@ -486,6 +486,9 @@ def create_creep_graph(df, parent_frame):
     canvas.draw()
     canvas.get_tk_widget().pack(fill="both", expand=True)
 
+
+
+
 # -------------------------------
 # Fetch Player Stats and Build UI
 # -------------------------------
@@ -498,48 +501,45 @@ def fetch_data():
         messagebox.showwarning("Missing Info", "Enter both name and tag.")
         return
 
-    def start_fetch():
-        # Disable fetch button during load
-        fetch_btn.config(state="disabled")
+    # Disable fetch button immediately
+    fetch_btn.config(state="disabled", text="Loading...")
+    root.update_idletasks()  # Force UI update
 
-        def fetch_thread():
-            try:
-                # Check cache first
-                cache_key = f"{name}#{tag}_{matches}"
-                if cache_key in player_cache:
-                    df = player_cache[cache_key]
-                    print(f"Loaded from cache: {cache_key}")
-                else:
-                    puuid = get_puuid(gameName=name, tagLine=tag, api_key=api_key)
-                    if not puuid:
-                        root.after(0, lambda: messagebox.showerror("Error", "Player not found"))
-                        root.after(0, lambda: fetch_btn.config(state="normal"))
-                        return
-
-                    df = get_player_stats(puuid, match_count=int(matches))
-
-                    # Cache the result
-                    player_cache[cache_key] = df
-
-                if df.empty:
-                    root.after(0, lambda: messagebox.showinfo("No Data", "No matches found."))
-                    root.after(0, lambda: fetch_btn.config(state="normal"))
+    def fetch_thread():
+        try:
+            # Check cache first
+            cache_key = f"{name}#{tag}_{matches}"
+            if cache_key in player_cache:
+                df = player_cache[cache_key]
+                print(f"Loaded from cache: {cache_key}")
+            else:
+                puuid = get_puuid(gameName=name, tagLine=tag, api_key=api_key)
+                if not puuid:
+                    root.after(0, lambda: messagebox.showerror("Error", "Player not found"))
+                    root.after(0, lambda: fetch_btn.config(state="normal", text="Fetch Stats"))
                     return
 
-                # Update UI in main thread
-                root.after(0, lambda: display_results(df, name, tag))
+                df = get_player_stats(puuid, match_count=int(matches))
 
-            except Exception as e:
-                root.after(0, lambda: messagebox.showerror("Error", str(e)))
-            finally:
-                root.after(0, lambda: fetch_btn.config(state="normal"))
+                # Cache the result
+                player_cache[cache_key] = df
 
-        # Run fetch in separate thread
-        thread = threading.Thread(target=fetch_thread, daemon=True)
-        thread.start()
+            if df.empty:
+                root.after(0, lambda: messagebox.showinfo("No Data", "No matches found."))
+                root.after(0, lambda: fetch_btn.config(state="normal", text="Fetch Stats"))
+                return
 
-    # Use after() to ensure UI updates before starting thread
-    root.after(10, start_fetch)
+            # Update UI in main thread
+            root.after(0, lambda: display_results(df, name, tag))
+
+        except Exception as e:
+            root.after(0, lambda: messagebox.showerror("Error", str(e)))
+        finally:
+            root.after(0, lambda: fetch_btn.config(state="normal", text="Fetch Stats"))
+
+    # Run fetch in separate thread
+    thread = threading.Thread(target=fetch_thread, daemon=True)
+    thread.start()
 
 
 def display_results(df, name, tag):
